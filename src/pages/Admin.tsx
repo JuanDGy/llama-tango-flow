@@ -7,7 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { products } from "@/data/products";
-import { getOrders, Order, updateOrderStatus } from "@/utils/orderStore";
+import { 
+  getOrders, 
+  Order, 
+  updateOrderStatus, 
+  getClaims,
+  Claim,
+  updateClaimStatus,
+  getInventory,
+  saveInventory
+} from "@/utils/orderStore";
 import { toast } from "@/components/ui/sonner";
 
 const Admin = () => {
@@ -16,17 +25,8 @@ const Admin = () => {
   // Estado para el panel de ventas
   const [ordenes, setOrdenes] = useState<Order[]>([]);
   
-  // Cargar órdenes al iniciar
-  useEffect(() => {
-    const loadedOrders = getOrders();
-    setOrdenes(loadedOrders);
-  }, []);
-  
   // Estado para el panel de reclamos
-  const [reclamos] = useState([
-    { id: 1, cliente: "Carlos Rodríguez", asunto: "Producto dañado", descripcion: "El paquete llegó abierto y el café estaba húmedo", fecha: "07/05/2025", estado: "Pendiente" },
-    { id: 2, cliente: "Laura Gómez", asunto: "Retraso en entrega", descripcion: "Mi pedido tardó 3 días más de lo indicado", fecha: "05/05/2025", estado: "Resuelto" }
-  ]);
+  const [reclamos, setReclamos] = useState<Claim[]>([]);
   
   // Estado para el panel de stock
   const [inventario, setInventario] = useState(
@@ -36,13 +36,32 @@ const Admin = () => {
     }))
   );
   
+  // Cargar órdenes, reclamos e inventario al iniciar
+  useEffect(() => {
+    const loadedOrders = getOrders();
+    setOrdenes(loadedOrders);
+    
+    const loadedClaims = getClaims();
+    setReclamos(loadedClaims);
+    
+    // Cargar inventario si existe, si no, inicializar con valores aleatorios
+    const loadedInventory = getInventory();
+    if (loadedInventory.length) {
+      setInventario(loadedInventory);
+    } else {
+      // Si no hay inventario guardado, inicializar y guardarlo
+      saveInventory(inventario);
+    }
+  }, []);
+  
   // Función para actualizar stock
   const actualizarStock = (id: number, nuevoStock: number) => {
-    setInventario(prevState => 
-      prevState.map(item => 
-        item.id === id ? { ...item, stock: nuevoStock } : item
-      )
+    const updatedInventory = inventario.map(item => 
+      item.id === id ? { ...item, stock: nuevoStock } : item
     );
+    setInventario(updatedInventory);
+    saveInventory(updatedInventory);
+    toast(`Stock del producto #${id} actualizado a ${nuevoStock} unidades`);
   };
   
   // Función para cambiar el estado de una orden
@@ -58,6 +77,23 @@ const Admin = () => {
     } else {
       toast(`Error al actualizar la orden ${id}`, {
         description: "No se encontró la orden especificada"
+      });
+    }
+  };
+  
+  // Función para cambiar el estado de un reclamo
+  const cambiarEstadoReclamo = (id: number, nuevoEstado: Claim['status']) => {
+    const actualizado = updateClaimStatus(id, nuevoEstado);
+    
+    if (actualizado) {
+      // Actualizar estado local
+      setReclamos(prev => prev.map(reclamo => 
+        reclamo.id === id ? {...reclamo, status: nuevoEstado} : reclamo
+      ));
+      toast(`Estado del reclamo ${id} actualizado a ${nuevoEstado}`);
+    } else {
+      toast(`Error al actualizar el reclamo ${id}`, {
+        description: "No se encontró el reclamo especificado"
       });
     }
   };
@@ -99,6 +135,7 @@ const Admin = () => {
                         <TableHead>Productos</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Fecha</TableHead>
+                        <TableHead>Tiempos Estimados</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Acciones</TableHead>
                       </TableRow>
@@ -111,6 +148,17 @@ const Admin = () => {
                           <TableCell>{formatearProductos(orden)}</TableCell>
                           <TableCell>${orden.total.toFixed(2)}</TableCell>
                           <TableCell>{orden.date}</TableCell>
+                          <TableCell>
+                            {orden.estimatedPreparationTime && orden.estimatedDeliveryTime ? (
+                              <div className="text-xs">
+                                <p>Preparación: {orden.estimatedPreparationTime} min</p>
+                                <p>Entrega: {orden.estimatedDeliveryTime} min</p>
+                                <p className="font-medium">Total: {orden.estimatedPreparationTime + orden.estimatedDeliveryTime} min</p>
+                              </div>
+                            ) : (
+                              <span className="text-amber-500">No disponible</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <span className={`px-2 py-1 rounded-full text-xs ${
                               orden.status === "Entregado" ? "bg-green-100 text-green-800" :
@@ -151,40 +199,70 @@ const Admin = () => {
                 <CardTitle>Gestión de Reclamos</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Asunto</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reclamos.map(reclamo => (
-                      <TableRow key={reclamo.id}>
-                        <TableCell>{reclamo.id}</TableCell>
-                        <TableCell>{reclamo.cliente}</TableCell>
-                        <TableCell>{reclamo.asunto}</TableCell>
-                        <TableCell className="max-w-xs truncate">{reclamo.descripcion}</TableCell>
-                        <TableCell>{reclamo.fecha}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            reclamo.estado === "Resuelto" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
-                          }`}>
-                            {reclamo.estado}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="outline" size="sm">Responder</Button>
-                        </TableCell>
+                {reclamos.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-amber-700">No hay reclamos registrados todavía</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Asunto</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Descripción</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Acciones</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {reclamos.map(reclamo => (
+                        <TableRow key={reclamo.id}>
+                          <TableCell>{reclamo.id}</TableCell>
+                          <TableCell>{reclamo.clientName}</TableCell>
+                          <TableCell>{reclamo.subject}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              reclamo.claimType === "reclamo" ? "bg-red-100 text-red-800" : 
+                              reclamo.claimType === "sugerencia" ? "bg-blue-100 text-blue-800" :
+                              reclamo.claimType === "pedido" ? "bg-purple-100 text-purple-800" :
+                              "bg-green-100 text-green-800"
+                            }`}>
+                              {reclamo.claimType === "consulta" ? "Consulta" :
+                              reclamo.claimType === "reclamo" ? "Reclamo" :
+                              reclamo.claimType === "sugerencia" ? "Sugerencia" : "Problema de Pedido"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">{reclamo.message}</TableCell>
+                          <TableCell>{reclamo.date}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              reclamo.status === "Resuelto" ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
+                            }`}>
+                              {reclamo.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Select 
+                              defaultValue={reclamo.status}
+                              onValueChange={(value) => cambiarEstadoReclamo(reclamo.id, value as Claim['status'])}
+                            >
+                              <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Cambiar estado" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Pendiente">Pendiente</SelectItem>
+                                <SelectItem value="Resuelto">Resuelto</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -224,7 +302,7 @@ const Admin = () => {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => actualizarStock(item.id, item.stock - 1)}
+                            onClick={() => actualizarStock(item.id, Math.max(0, item.stock - 1))}
                             disabled={item.stock <= 0}
                           >
                             -

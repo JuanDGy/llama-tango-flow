@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { saveClaim } from "@/utils/orderStore";
 
 const Contacto = () => {
   const [nombre, setNombre] = useState("");
@@ -25,28 +25,25 @@ const Contacto = () => {
       return;
     }
 
-    // Simulate form submission
-    setTimeout(() => {
-      // In a real app, this would send data to a backend API
-      console.log({
-        nombre,
-        email,
-        asunto,
-        mensaje,
-        tipoContacto
-      });
-      
-      // Show success message
-      toast("Mensaje enviado correctamente. Te responderemos a la brevedad.");
-      
-      // Reset form
-      setNombre("");
-      setEmail("");
-      setAsunto("");
-      setMensaje("");
-      setTipoContacto("consulta");
-      setIsSubmitting(false);
-    }, 1500);
+    // Save claim to localStorage
+    saveClaim({
+      clientName: nombre,
+      clientEmail: email,
+      subject: asunto,
+      message: mensaje,
+      claimType: tipoContacto
+    });
+    
+    // Show success message
+    toast("Mensaje enviado correctamente. Te responderemos a la brevedad.");
+    
+    // Reset form
+    setNombre("");
+    setEmail("");
+    setAsunto("");
+    setMensaje("");
+    setTipoContacto("consulta");
+    setIsSubmitting(false);
   };
 
   return (

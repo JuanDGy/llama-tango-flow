@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -74,14 +75,16 @@ const Checkout = () => {
       quantity: item.quantity || 1
     }));
     
-    // Guardar el pedido
+    // Guardar el pedido con los tiempos estimados
     const newOrder = saveOrder({
       clientName: nombre,
       clientEmail: email,
       products: orderItems,
       total: getTotalPrice(),
       locationId: Number(locationId),
-      address: direccion
+      address: direccion,
+      estimatedPreparationTime: deliveryInfo.estimatedPreparation,
+      estimatedDeliveryTime: deliveryInfo.estimatedDelivery
     });
     
     // Process payment (in a real app, this would be a payment gateway integration)
