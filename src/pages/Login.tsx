@@ -13,6 +13,12 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Administradores predefinidos
+  const ADMIN_USERS = [
+    { email: "admin1@cafe.com", password: "admin123", name: "Administrador 1" },
+    { email: "admin2@cafe.com", password: "admin456", name: "Administrador 2" }
+  ];
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -24,7 +30,27 @@ const Login = () => {
       return;
     }
 
-    // In a real app, this would be an API call
+    // Verificar si es un administrador
+    const adminUser = ADMIN_USERS.find(
+      (admin) => admin.email === email && admin.password === password
+    );
+
+    if (adminUser) {
+      // Es un administrador
+      const adminUserData = {
+        email: adminUser.email,
+        name: adminUser.name,
+        isAdmin: true
+      };
+      
+      localStorage.setItem("cafeUser", JSON.stringify(adminUserData));
+      toast(`Bienvenido Administrador ${adminUser.name}`);
+      navigate("/admin");
+      setLoading(false);
+      return;
+    }
+
+    // Si no es admin, verificar usuarios normales
     setTimeout(() => {
       // Simulate checking stored users
       const users = JSON.parse(localStorage.getItem("cafeUsers") || "[]");
@@ -33,7 +59,12 @@ const Login = () => {
       if (user) {
         // Store authenticated user (in a real app, store a token instead)
         const { password, ...userWithoutPassword } = user;
-        localStorage.setItem("cafeUser", JSON.stringify(userWithoutPassword));
+        const userData = {
+          ...userWithoutPassword,
+          isAdmin: false
+        };
+        
+        localStorage.setItem("cafeUser", JSON.stringify(userData));
         toast("Inicio de sesión exitoso");
         navigate("/");
       } else {

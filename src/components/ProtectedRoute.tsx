@@ -5,10 +5,12 @@ import { toast } from "@/components/ui/sonner";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  adminOnly?: boolean;
 }
 
-const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   
   useEffect(() => {
     const user = localStorage.getItem("cafeUser");
@@ -16,15 +18,32 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     
     if (!user) {
       toast("Debes iniciar sesión para acceder a esta página");
+      return;
     }
-  }, []);
+    
+    // Verificar si el usuario es administrador
+    const userData = JSON.parse(user);
+    setIsAdmin(userData.isAdmin || false);
+    
+    if (adminOnly && !userData.isAdmin) {
+      toast("No tienes permisos para acceder a esta página");
+    }
+  }, [adminOnly]);
 
   if (isAuthenticated === null) {
     // Still checking authentication
     return <div className="min-h-screen flex justify-center items-center">Verificando...</div>;
   }
 
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;

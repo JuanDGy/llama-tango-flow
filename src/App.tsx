@@ -12,6 +12,7 @@ import Catalogo from "./pages/Catalogo";
 import Carrito from "./pages/Carrito";
 import Checkout from "./pages/Checkout";
 import Contacto from "./pages/Contacto";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -46,6 +47,11 @@ const App = () => (
             <Route path="/contacto" element={
               <ProtectedRoute>
                 <Contacto />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedRoute adminOnly={true}>
+                <Admin />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
