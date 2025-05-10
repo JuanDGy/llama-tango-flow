@@ -32,6 +32,36 @@ export interface Claim {
   claimType: string;
 }
 
+// Sistema de límites
+export const MAX_CONCURRENT_USERS = 5;
+export const MAX_PRODUCTS_PER_USER = 20;
+
+// Controlar usuarios activos
+export const getActiveUsers = (): string[] => {
+  const activeUsers = localStorage.getItem('cafeActiveUsers');
+  return activeUsers ? JSON.parse(activeUsers) : [];
+};
+
+export const addActiveUser = (email: string): boolean => {
+  const activeUsers = getActiveUsers();
+  
+  // Verificar si ya está el usuario
+  if (activeUsers.includes(email)) return true;
+  
+  // Verificar si se excedió el límite
+  if (activeUsers.length >= MAX_CONCURRENT_USERS) return false;
+  
+  activeUsers.push(email);
+  localStorage.setItem('cafeActiveUsers', JSON.stringify(activeUsers));
+  return true;
+};
+
+export const removeActiveUser = (email: string): void => {
+  const activeUsers = getActiveUsers();
+  const updatedUsers = activeUsers.filter(user => user !== email);
+  localStorage.setItem('cafeActiveUsers', JSON.stringify(updatedUsers));
+};
+
 // Get orders from localStorage
 export const getOrders = (): Order[] => {
   const orders = localStorage.getItem('cafeOrders');

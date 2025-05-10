@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { toast } from "@/components/ui/sonner";
+import { addActiveUser } from "@/utils/orderStore";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -11,6 +13,8 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [canAccess, setCanAccess] = useState<boolean | null>(null);
+  const { t } = useLanguage();
   
   useEffect(() => {
     const user = localStorage.getItem("cafeUser");
@@ -18,6 +22,7 @@ const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) =>
     
     if (!user) {
       toast("Debes iniciar sesión para acceder a esta página");
+      setCanAccess(false);
       return;
     }
     
@@ -27,15 +32,30 @@ const ProtectedRoute = ({ children, adminOnly = false }: ProtectedRouteProps) =>
     
     if (adminOnly && !userData.isAdmin) {
       toast("No tienes permisos para acceder a esta página");
+      setCanAccess(false);
+      return;
     }
-  }, [adminOnly]);
+    
+    // Verificar límite de usuarios concurrentes (solo para usuarios normales)
+    if (!userData.isAdmin) {
+      const canAddUser = addActiveUser(userData.email);
+      
+      if (!canAddUser) {
+        toast(t("maxUsersReached"));
+        setCanAccess(false);
+        return;
+      }
+    }
+    
+    setCanAccess(true);
+  }, [adminOnly, t]);
 
-  if (isAuthenticated === null) {
+  if (isAuthenticated === null || canAccess === null) {
     // Still checking authentication
     return <div className="min-h-screen flex justify-center items-center">Verificando...</div>;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !canAccess) {
     return <Navigate to="/login" replace />;
   }
 

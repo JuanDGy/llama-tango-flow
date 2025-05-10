@@ -6,12 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
+import { addActiveUser } from "@/utils/orderStore";
+import { useLanguage } from "@/context/LanguageContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   // Administradores predefinidos
   const ADMIN_USERS = [
@@ -44,7 +47,7 @@ const Login = () => {
       };
       
       localStorage.setItem("cafeUser", JSON.stringify(adminUserData));
-      toast(`Bienvenido Administrador ${adminUser.name}`);
+      toast(t("welcomeAdmin") + " " + adminUser.name);
       navigate("/admin");
       setLoading(false);
       return;
@@ -57,7 +60,16 @@ const Login = () => {
       const user = users.find((u: any) => u.email === email && u.password === password);
       
       if (user) {
-        // Store authenticated user (in a real app, store a token instead)
+        // Verificar el límite de usuarios concurrentes
+        const canAddUser = addActiveUser(email);
+        
+        if (!canAddUser) {
+          toast(t("maxUsersReached"));
+          setLoading(false);
+          return;
+        }
+        
+        // Store authenticated user
         const { password, ...userWithoutPassword } = user;
         const userData = {
           ...userWithoutPassword,
@@ -65,7 +77,7 @@ const Login = () => {
         };
         
         localStorage.setItem("cafeUser", JSON.stringify(userData));
-        toast("Inicio de sesión exitoso");
+        toast(t("welcome") + ", " + user.name);
         navigate("/");
       } else {
         toast("Email o contraseña incorrectos");
@@ -78,7 +90,7 @@ const Login = () => {
     <div className="min-h-screen bg-amber-50 flex justify-center items-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-amber-800">Iniciar Sesión</CardTitle>
+          <CardTitle className="text-2xl font-bold text-amber-800">{t("login")}</CardTitle>
           <CardDescription>
             Ingresa tus credenciales para acceder a tu cuenta
           </CardDescription>
@@ -112,7 +124,7 @@ const Login = () => {
               className="w-full bg-amber-700 hover:bg-amber-800"
               disabled={loading}
             >
-              {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              {loading ? "Iniciando sesión..." : t("login")}
             </Button>
           </form>
         </CardContent>
@@ -120,7 +132,7 @@ const Login = () => {
           <p className="text-sm text-amber-900">
             ¿No tienes una cuenta?{" "}
             <Link to="/registro" className="text-amber-700 hover:underline font-medium">
-              Regístrate
+              {t("register")}
             </Link>
           </p>
         </CardFooter>
