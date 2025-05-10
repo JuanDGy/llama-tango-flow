@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -14,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { useCart } from "../context/CartContext";
 import { locations } from "../data/products";
 import { toast } from "@/components/ui/sonner";
+import { saveOrder, OrderItem } from "@/utils/orderStore";
 
 const Checkout = () => {
   const { cart, getTotalPrice, clearCart } = useCart();
@@ -33,7 +33,7 @@ const Checkout = () => {
     const userData = localStorage.getItem("cafeUser");
     if (userData) {
       const user = JSON.parse(userData);
-      setNombre(user.nombre || "");
+      setNombre(user.nombre || user.name || "");
       setEmail(user.email || "");
     }
   }, []);
@@ -66,9 +66,30 @@ const Checkout = () => {
       return;
     }
     
+    // Crear los items del pedido
+    const orderItems: OrderItem[] = cart.map(item => ({
+      productId: item.id,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity || 1
+    }));
+    
+    // Guardar el pedido
+    const newOrder = saveOrder({
+      clientName: nombre,
+      clientEmail: email,
+      products: orderItems,
+      total: getTotalPrice(),
+      locationId: Number(locationId),
+      address: direccion
+    });
+    
     // Process payment (in a real app, this would be a payment gateway integration)
     setTimeout(() => {
       toast("¡Compra realizada con éxito!");
+      toast(`Pedido #${newOrder.id} registrado`, {
+        description: "Puedes seguir el estado de tu pedido contactándonos"
+      });
       clearCart();
       navigate("/");
     }, 1500);

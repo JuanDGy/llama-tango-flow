@@ -1,22 +1,26 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { products } from "@/data/products";
+import { getOrders, Order, updateOrderStatus } from "@/utils/orderStore";
+import { toast } from "@/components/ui/sonner";
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("ventas");
   
   // Estado para el panel de ventas
-  const [ordenes] = useState([
-    { id: 1, cliente: "María López", productos: "Café Colombiano (2)", total: 25.98, fecha: "10/05/2025", estado: "Entregado" },
-    { id: 2, cliente: "Juan Pérez", productos: "Café Etíope (1), Café Brasileño (1)", total: 26.98, fecha: "09/05/2025", estado: "En proceso" },
-    { id: 3, cliente: "Ana Martínez", productos: "Café Descafeinado (3)", total: 32.97, fecha: "08/05/2025", estado: "Pendiente" }
-  ]);
+  const [ordenes, setOrdenes] = useState<Order[]>([]);
+  
+  // Cargar órdenes al iniciar
+  useEffect(() => {
+    const loadedOrders = getOrders();
+    setOrdenes(loadedOrders);
+  }, []);
   
   // Estado para el panel de reclamos
   const [reclamos] = useState([
@@ -41,6 +45,28 @@ const Admin = () => {
     );
   };
   
+  // Función para cambiar el estado de una orden
+  const cambiarEstadoOrden = (id: number, nuevoEstado: Order['status']) => {
+    const actualizado = updateOrderStatus(id, nuevoEstado);
+    
+    if (actualizado) {
+      // Actualizar estado local
+      setOrdenes(prev => prev.map(orden => 
+        orden.id === id ? {...orden, status: nuevoEstado} : orden
+      ));
+      toast(`Estado de la orden ${id} actualizado a ${nuevoEstado}`);
+    } else {
+      toast(`Error al actualizar la orden ${id}`, {
+        description: "No se encontró la orden especificada"
+      });
+    }
+  };
+  
+  // Formatear productos para mostrar en la tabla
+  const formatearProductos = (order: Order) => {
+    return order.products.map(item => `${item.name} (${item.quantity})`).join(", ");
+  };
+  
   return (
     <div className="min-h-screen bg-amber-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -60,42 +86,60 @@ const Admin = () => {
                 <CardTitle>Gestión de Ventas</CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Productos</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Fecha</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {ordenes.map(orden => (
-                      <TableRow key={orden.id}>
-                        <TableCell>{orden.id}</TableCell>
-                        <TableCell>{orden.cliente}</TableCell>
-                        <TableCell>{orden.productos}</TableCell>
-                        <TableCell>${orden.total.toFixed(2)}</TableCell>
-                        <TableCell>{orden.fecha}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            orden.estado === "Entregado" ? "bg-green-100 text-green-800" :
-                            orden.estado === "En proceso" ? "bg-blue-100 text-blue-800" :
-                            "bg-amber-100 text-amber-800"
-                          }`}>
-                            {orden.estado}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="outline" size="sm">Ver detalles</Button>
-                        </TableCell>
+                {ordenes.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-amber-700">No hay pedidos registrados todavía</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Productos</TableHead>
+                        <TableHead>Total</TableHead>
+                        <TableHead>Fecha</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Acciones</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {ordenes.map(orden => (
+                        <TableRow key={orden.id}>
+                          <TableCell>{orden.id}</TableCell>
+                          <TableCell>{orden.clientName}</TableCell>
+                          <TableCell>{formatearProductos(orden)}</TableCell>
+                          <TableCell>${orden.total.toFixed(2)}</TableCell>
+                          <TableCell>{orden.date}</TableCell>
+                          <TableCell>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              orden.status === "Entregado" ? "bg-green-100 text-green-800" :
+                              orden.status === "En proceso" ? "bg-blue-100 text-blue-800" :
+                              "bg-amber-100 text-amber-800"
+                            }`}>
+                              {orden.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Select 
+                              defaultValue={orden.status}
+                              onValueChange={(value) => cambiarEstadoOrden(orden.id, value as Order['status'])}
+                            >
+                              <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Cambiar estado" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Pendiente">Pendiente</SelectItem>
+                                <SelectItem value="En proceso">En proceso</SelectItem>
+                                <SelectItem value="Entregado">Entregado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
